@@ -48,6 +48,20 @@ const BUDGET_TYPES = Object.freeze({
   CARD: 'card',
 });
 
+const SPLIT_TYPES = Object.freeze({
+  SINGLE: 'single',
+  EQUAL: 'equal',
+  PERCENT: 'percent',
+  CUSTOM: 'custom',
+});
+
+const MEMBER_PAYMENT_METHODS = Object.freeze([
+  'cash',
+  'upi',
+  'bank_transfer',
+  'other',
+]);
+
 const NOTIFICATION_TYPES = Object.freeze({
   DUE_DATE: 'due_date',
   CARD_LIMIT: 'card_limit',
@@ -64,5 +78,7 @@ module.exports = {
   PAYMENT_MODES,
   PAYMENT_STATUS,
   BUDGET_TYPES,
+  SPLIT_TYPES,
+  MEMBER_PAYMENT_METHODS,
   NOTIFICATION_TYPES,
 };

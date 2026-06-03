@@ -74,6 +74,19 @@ const syncCardBalance = async (cardId) => {
   return card;
 };
 
+const getAllCardsWithSummaries = async (month, year) => {
+  const cards = await getAllCards();
+  const summaries = await Promise.all(
+    cards.map((card) =>
+      getCardSummary(card._id, month, year).then((summary) => ({
+        cardId: card._id,
+        ...summary,
+      }))
+    )
+  );
+  return { cards, summaries };
+};
+
 module.exports = {
   createCard,
   getAllCards,
@@ -81,5 +94,6 @@ module.exports = {
   updateCard,
   deleteCard,
   getCardSummary,
+  getAllCardsWithSummaries,
   syncCardBalance,
 };

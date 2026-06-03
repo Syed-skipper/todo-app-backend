@@ -11,6 +11,7 @@ const createCardValidator = [
   body('dueDate').isInt({ min: 1, max: 31 }),
   body('availableBalance').optional().isFloat({ min: 0 }),
   body('status').optional().isIn(Object.values(CARD_STATUS)),
+  body('notes').optional().isString(),
 ];
 
 const updateCardValidator = [

@@ -19,6 +19,9 @@ const notificationRoutes = require('./modules/notifications/notification.routes'
 const analyticsRoutes = require('./modules/analytics/analytics.routes');
 const reportRoutes = require('./modules/reports/report.routes');
 const userRoutes = require('./modules/users/user.routes');
+const familyMemberRoutes = require('./modules/family-members/familyMember.routes');
+const settlementRoutes = require('./modules/settlements/settlement.routes');
+const memberPaymentRoutes = require('./modules/member-payments/memberPayment.routes');
 const { EXPENSE_CATEGORIES } = require('./constants');
 const { getMongoConfig } = require('./config/database');
 
@@ -48,6 +51,9 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/family-members', familyMemberRoutes);
+app.use('/api/settlements', settlementRoutes);
+app.use('/api/member-payments', memberPaymentRoutes);
 
 app.use(errorHandler);
 

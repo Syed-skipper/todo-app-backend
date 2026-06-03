@@ -10,8 +10,9 @@ const router = express.Router();
 
 router.use(authenticateToken);
 
-router.post('/', requireAdmin, createCardValidator, validate, asyncHandler(cardController.createCard));
+router.post('/', createCardValidator, validate, asyncHandler(cardController.createCard));
 router.get('/', asyncHandler(cardController.getAllCards));
+router.get('/summaries/all', asyncHandler(cardController.getAllSummaries));
 router.get('/:id/summary', idParamValidator, validate, asyncHandler(cardController.getCardSummary));
 router.get('/:id', idParamValidator, validate, asyncHandler(cardController.getCardById));
 router.put('/:id', requireAdmin, updateCardValidator, validate, asyncHandler(cardController.updateCard));

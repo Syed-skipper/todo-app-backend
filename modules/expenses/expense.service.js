@@ -1,21 +1,42 @@
 const ApiError = require('../../utils/ApiError');
-const { Card, Notification } = require('../../models');
-const { NOTIFICATION_TYPES } = require('../../constants');
+const { Card, Notification, FamilyMember } = require('../../models');
+const { NOTIFICATION_TYPES, SPLIT_TYPES } = require('../../constants');
+const { buildAllocations } = require('../../utils/allocationHelpers');
 const expenseRepository = require('./expense.repository');
 const cardService = require('../cards/card.service');
 
+const resolveAllocations = async (data) => {
+  const splitType = data.splitType || SPLIT_TYPES.SINGLE;
+  const memberIds = data.memberIds || [];
+  const customAllocations = data.allocations || [];
+
+  if (data.familyMemberId && splitType === SPLIT_TYPES.SINGLE) {
+    return buildAllocations(data.amount, SPLIT_TYPES.SINGLE, [], [
+      { familyMemberId: data.familyMemberId },
+    ]);
+  }
+
+  if (data.memberId && !data.familyMemberId) {
+    const legacy = await FamilyMember.findOne({ _id: data.memberId });
+    if (!legacy) {
+      return buildAllocations(data.amount, SPLIT_TYPES.SINGLE, [], [
+        { familyMemberId: data.memberId },
+      ]);
+    }
+  }
+
+  const members = memberIds.map((id) => ({ familyMemberId: id }));
+  return buildAllocations(data.amount, splitType, members, customAllocations);
+};
+
 const notifyNewTransaction = async (expense, createdBy) => {
-  const users = await require('../../models').User.find({ isActive: true }).select('_id');
-  const notifications = users
-    .filter((u) => u._id.toString() !== createdBy)
-    .map((u) => ({
-      user: u._id,
-      type: NOTIFICATION_TYPES.NEW_TRANSACTION,
-      title: 'New expense added',
-      message: `₹${expense.amount} at ${expense.merchant}`,
-      metadata: { expenseId: expense._id },
-    }));
-  if (notifications.length) await Notification.insertMany(notifications);
+  await Notification.create({
+    user: createdBy,
+    type: NOTIFICATION_TYPES.NEW_TRANSACTION,
+    title: 'New expense added',
+    message: `₹${expense.amount} at ${expense.merchant}`,
+    metadata: { expenseId: expense._id },
+  }).catch(() => {});
 };
 
 const createExpense = async (data, userId) => {
@@ -23,11 +44,15 @@ const createExpense = async (data, userId) => {
   if (!card) throw new ApiError(404, 'Card not found');
   if (card.status === 'blocked') throw new ApiError(400, 'Card is blocked');
 
+  const allocations = await resolveAllocations(data);
+  if (!allocations?.length) throw new ApiError(400, 'Assign at least one family member');
+
   const expense = await expenseRepository.create({
     amount: data.amount,
     expenseDate: data.expenseDate || new Date(),
     card: data.cardId,
-    member: data.memberId,
+    splitType: data.splitType || SPLIT_TYPES.SINGLE,
+    allocations,
     merchant: data.merchant,
     category: data.category,
     notes: data.notes,
@@ -40,18 +65,6 @@ const createExpense = async (data, userId) => {
   if (card.availableBalance !== undefined) {
     card.availableBalance = Math.max(0, (card.availableBalance ?? card.creditLimit) - data.amount);
     await card.save();
-
-    const used = card.creditLimit - card.availableBalance;
-    const utilization = (used / card.creditLimit) * 100;
-    if (utilization >= 80) {
-      await Notification.create({
-        user: userId,
-        type: NOTIFICATION_TYPES.CARD_LIMIT,
-        title: 'Card nearing limit',
-        message: `${card.nickname} is at ${Math.round(utilization)}% utilization`,
-        metadata: { cardId: card._id },
-      });
-    }
   }
 
   const populated = await expenseRepository.findById(expense._id);
@@ -80,9 +93,16 @@ const updateExpense = async (id, data) => {
 
   const updateData = { ...data };
   if (data.cardId) updateData.card = data.cardId;
-  if (data.memberId) updateData.member = data.memberId;
   delete updateData.cardId;
   delete updateData.memberId;
+  delete updateData.memberIds;
+  delete updateData.familyMemberId;
+
+  if (data.splitType || data.allocations || data.familyMemberId || data.memberIds) {
+    const amount = data.amount ?? existing.amount;
+    updateData.allocations = await resolveAllocations({ ...existing.toObject(), ...data, amount });
+    updateData.splitType = data.splitType || existing.splitType;
+  }
 
   const expense = await expenseRepository.updateById(id, updateData);
   if (data.amount && existing.card) {

@@ -13,6 +13,7 @@ const CardSchema = new mongoose.Schema(
     availableBalance: { type: Number, default: 0, min: 0 },
     status: { type: String, enum: Object.values(CARD_STATUS), default: CARD_STATUS.ACTIVE },
     color: { type: String, default: '#1976d2' },
+    notes: { type: String, trim: true },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   },
   { timestamps: true }

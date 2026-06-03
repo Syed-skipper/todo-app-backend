@@ -1,3 +1,4 @@
+const fs = require('fs');
 const expenseService = require('./expense.service');
 const { sendSuccess, sendPaginated } = require('../../utils/response');
 const { getPagination, buildPaginationMeta } = require('../../utils/pagination');
@@ -28,10 +29,25 @@ const deleteExpense = async (req, res) => {
   sendSuccess(res, result);
 };
 
+const importCsv = async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ success: false, message: 'CSV file required' });
+  }
+  const importService = require('./expense.import.service');
+  const results = await importService.importFromCsv(req.file.path, req.user.user_id);
+  try {
+    fs.unlinkSync(req.file.path);
+  } catch {
+    /* ignore */
+  }
+  sendSuccess(res, results, `Imported ${results.created} transactions`);
+};
+
 module.exports = {
   createExpense,
   listExpenses,
   getExpenseById,
   updateExpense,
   deleteExpense,
+  importCsv,
 };

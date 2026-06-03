@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
 const { getMongoConfig } = require('../config/database');
-const { User, Card, Budget } = require('../models');
+const { User, Card, Budget, FamilyMember } = require('../models');
 const { ROLES, CARD_STATUS } = require('../constants');
 
 const seed = async () => {
@@ -33,6 +33,19 @@ const seed = async () => {
     ];
     await Card.insertMany(cards.map((c) => ({ ...c, status: CARD_STATUS.ACTIVE })));
     console.log('6 credit cards seeded');
+  }
+
+  const fmCount = await FamilyMember.countDocuments();
+  if (fmCount === 0) {
+    const admin = await User.findOne({ role: ROLES.ADMIN });
+    await FamilyMember.insertMany([
+      { name: 'Father', relationship: 'Father', phone: '9876543210', createdBy: admin?._id },
+      { name: 'Mother', relationship: 'Mother', phone: '9876543211', createdBy: admin?._id },
+      { name: 'Brother', relationship: 'Brother', phone: '9876543212', createdBy: admin?._id },
+      { name: 'Sister', relationship: 'Sister', phone: '9876543213', createdBy: admin?._id },
+      { name: 'Self', relationship: 'Self', phone: '9876543214', createdBy: admin?._id },
+    ]);
+    console.log('Family members seeded');
   }
 
   const now = new Date();

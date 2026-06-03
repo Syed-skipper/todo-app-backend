@@ -35,6 +35,14 @@ const getCardSummary = async (req, res) => {
   sendSuccess(res, summary);
 };
 
+const getAllSummaries = async (req, res) => {
+  const data = await cardService.getAllCardsWithSummaries(
+    parseInt(req.query.month, 10),
+    parseInt(req.query.year, 10)
+  );
+  sendSuccess(res, data);
+};
+
 module.exports = {
   createCard,
   getAllCards,
@@ -42,4 +50,5 @@ module.exports = {
   updateCard,
   deleteCard,
   getCardSummary,
+  getAllSummaries,
 };

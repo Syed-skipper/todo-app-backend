@@ -14,7 +14,9 @@ const {
 } = require('./expense.validator');
 
 const uploadDir = path.join(__dirname, '../../uploads/receipts');
+const csvDir = path.join(__dirname, '../../uploads/imports');
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+if (!fs.existsSync(csvDir)) fs.mkdirSync(csvDir, { recursive: true });
 
 const storage = multer.diskStorage({
   destination: uploadDir,
@@ -48,6 +50,11 @@ router.post(
   asyncHandler(expenseController.createExpense)
 );
 router.get('/', listExpenseValidator, validate, asyncHandler(expenseController.listExpenses));
+router.post(
+  '/import',
+  multer({ dest: csvDir, limits: { fileSize: 2 * 1024 * 1024 } }).single('file'),
+  asyncHandler(expenseController.importCsv)
+);
 router.get('/:id', idParamValidator, validate, asyncHandler(expenseController.getExpenseById));
 router.put('/:id', updateExpenseValidator, validate, asyncHandler(expenseController.updateExpense));
 router.delete('/:id', idParamValidator, validate, asyncHandler(expenseController.deleteExpense));

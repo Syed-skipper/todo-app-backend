@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 const { Expense, Card, User, Budget } = require('../../models');
 const { getMonthRange, getCurrentMonthYear } = require('../../utils/dateHelpers');
-const memberRepository = require('../members/member.repository');
+const settlementService = require('../settlements/settlement.service');
 
 const getMonthlyDashboard = async (month, year) => {
   const { month: m, year: y } = getCurrentMonthYear();
@@ -26,7 +26,18 @@ const getMonthlyDashboard = async (month, year) => {
       { $group: { _id: '$category', total: { $sum: '$amount' }, count: { $sum: 1 } } },
       { $sort: { total: -1 } },
     ]),
-    memberRepository.aggregateMemberSpending(start, end),
+    Expense.aggregate([
+      { $match: { expenseDate: { $gte: start, $lte: end }, status: 'completed' } },
+      { $unwind: '$allocations' },
+      {
+        $group: {
+          _id: '$allocations.familyMember',
+          totalSpent: { $sum: '$allocations.amount' },
+          transactionCount: { $sum: 1 },
+        },
+      },
+      { $sort: { totalSpent: -1 } },
+    ]),
     Expense.aggregate([
       { $match: { expenseDate: { $gte: start, $lte: end }, status: 'completed' } },
       { $group: { _id: '$card', total: { $sum: '$amount' }, count: { $sum: 1 } } },
@@ -45,7 +56,10 @@ const getMonthlyDashboard = async (month, year) => {
     Budget.find({ month: targetMonth, year: targetYear }),
   ]);
 
-  const members = await User.find({ _id: { $in: memberSpending.map((m) => m._id) } }).select('name');
+  const { FamilyMember } = require('../../models');
+  const members = await FamilyMember.find({
+    _id: { $in: memberSpending.map((m) => m._id) },
+  }).select('name phone');
   const cards = await Card.find({ _id: { $in: cardUsage.map((c) => c._id) } });
   const memberMap = Object.fromEntries(members.map((m) => [m._id.toString(), m]));
   const cardMap = Object.fromEntries(cards.map((c) => [c._id.toString(), c]));
@@ -68,6 +82,8 @@ const getMonthlyDashboard = async (month, year) => {
       }
     : null;
 
+  const outstanding = await settlementService.getOutstandingBalances(targetMonth, targetYear);
+
   return {
     period: { month: targetMonth, year: targetYear },
     totalFamilySpend,
@@ -75,6 +91,9 @@ const getMonthlyDashboard = async (month, year) => {
     highestSpender,
     mostUsedCard,
     categoryBreakdown,
+    outstandingBalances: outstanding.balances,
+    totalOutstanding: outstanding.balances.reduce((s, b) => s + b.outstanding, 0),
+    unallocated: outstanding.unallocated,
     memberSpending: memberSpending.map((m) => ({
       member: memberMap[m._id?.toString()],
       total: m.totalSpent,
